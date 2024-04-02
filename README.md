@@ -36,6 +36,7 @@ The following packages are used in our model, see also the file `requirements.tx
 - [mesa](https://mesa.readthedocs.io/en/master/tutorials/intro_tutorial.html)
 - [pyyaml](https://pyyaml.org/)
 
+
 ## Installation
 
 ### Setting up the environment (No Docker)
