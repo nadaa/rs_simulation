@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-
+import mesa
 import time
 import pandas as pd
-from mesa.batchrunner import BatchRunner
+
+from mesa_utils.batchrunner import BatchRunner
 from model import RecommendationModel
 from plots import *
 from read_config import *
@@ -11,6 +12,7 @@ from utils import store_recommender_systems_generated_data  # create_all_directo
 import warnings
 
 warnings.filterwarnings("ignore")
+
 
 if __name__ == "__main__":
     print("Simulation begins ...\n")

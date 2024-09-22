@@ -3,5 +3,5 @@ pandas
 scipy
 matplotlib
 scikit-surprise
-mesa==1.0.0
+mesa
 pyyaml

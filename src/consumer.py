@@ -82,11 +82,8 @@ class ConsumerAgent(Agent):
         """
         A function to define consumer's decision to observe the social media
         """
-        probability_looking_social_media = np.random.uniform()
-        if (
-            probability_looking_social_media
-            >= model_parameters["observing_socialmedia_likelihood"]
-        ):
+        p = np.random.uniform()
+        if p <= model_parameters["observing_socialmedia_likelihood"]:
             self.provider_reputation_in_memory = (self.model.social_media[0]) / (
                 self.model.social_media[0] + self.model.social_media[1] + 1
             )
@@ -143,14 +140,14 @@ class ConsumerAgent(Agent):
 
     def post_to_social_media(self: Agent) -> None:
         p = np.random.uniform(0, 1)
-        social_media_prob = self.social_media_prob()
-        if p >= social_media_prob:
+        social_media_prob = self.get_social_media_prob()
+        if p <= social_media_prob:
             if self.is_satisfied():
                 self.model.social_media[0] += 1
             else:
                 self.model.social_media[1] += 1
 
-    def social_media_prob(self: Agent) -> float:
+    def get_social_media_prob(self: Agent) -> float:
         """
 
         :return: float as a probability.
@@ -168,7 +165,7 @@ class ConsumerAgent(Agent):
         A function makes decision if a consumer submits feedback to the service provider or not.
         """
         p = np.random.uniform()
-        if p >= self.model.feedback_likelihood:
+        if p <= self.model.feedback_likelihood:
             return 1
         return 0
 
@@ -212,8 +209,8 @@ class ConsumerAgent(Agent):
             #         model_parameters["dropout_threshold"],self.trust)
 
             if self.trust <= (
-                    self.initialtrust *
-                    model_parameters["dropout_threshold"]):
+                self.initialtrust * model_parameters["dropout_threshold"]
+            ):
                 self.model.dropout_consumers.append(self)
 
         self.selecteditem = None

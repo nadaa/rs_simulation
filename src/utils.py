@@ -11,6 +11,10 @@ from read_config import *
 from scipy.stats import truncnorm
 from surprise import SVD, Dataset, Reader
 
+# from sklearn.neighbors import NearestNeighbors
+from tqdm import tqdm
+
+
 
 def predict_consumers_items_utilities(
     ratings_df: pd.DataFrame,
@@ -35,7 +39,7 @@ def predict_consumers_items_utilities(
     model.fit(trainset)
     predictions = defaultdict(list)
 
-    for uid in users:
+    for uid in tqdm(users):
         for iid in items:
             est = model.predict(uid, iid).est
             predictions[uid].append({"iid": int(iid), "rating": float(round(est, 3))})
@@ -263,7 +267,7 @@ def get_items() -> int:
     datasetdir = get_dataset_dir()
     items_data_path = os.path.join(datasetdir, model_input["items_dataset"])
     items_df = pd.read_csv(items_data_path)
-    return items_df["movieId"]
+    return list(items_df["movieId"].unique())
 
 
 def create_directory(dir: str) -> None:
@@ -365,7 +369,7 @@ def get_params(obj: object) -> str:
     return SCENARIOS[str(d_params)]
 
 
-def generate_profitdata(seed: float) -> dict:
+def generate_profitdata(seed: float, items: list) -> dict:
     """
 
     :param obj: An object of agents or model class.
@@ -377,7 +381,7 @@ def generate_profitdata(seed: float) -> dict:
 
     """
     np.random.seed(seed)
-    items = get_items()
+    # items = get_items()
     lower, upper = 0, 5
     mu, sigma = 2.5, 1
     profits = truncnorm(
@@ -439,14 +443,14 @@ def update_consumer_personal_experiences(exp: float) -> float:
     return inc
 
 
-def generate_profit_data_popularity(seed: int) -> dict:
+def generate_profit_data_popularity(seed: int, items) -> dict:
     """
 
     :param seed: a value to generate random values.
     A function to generate profit data that is positively correlated with items popularity.
     """
 
-    profit_data = generate_profitdata(seed)
+    profit_data = generate_profitdata(seed, items)
     ratings_df = get_ratings_data()
     popular_items = get_popular_items(ratings_df)
 

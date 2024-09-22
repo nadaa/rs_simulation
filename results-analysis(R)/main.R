@@ -25,7 +25,9 @@
   colors = c("consumer-centric"="cornflowerblue","profit-centric"= "black","consumer-biased"="mediumorchid1","balanced"="red","popular-uncorrelated-profit"="mediumseagreen","popular-correlated-profit"="darkorange2")
   
   
-  datapath = choose.dir(getwd(), "Choose the results folder")
+ # datapath = choose.dir(getwd(), "Choose the results folder")
+  
+  datapath= "C:\\Phd\\extension-current\\results\\drop\\exec20240908-200131"
   
 
   

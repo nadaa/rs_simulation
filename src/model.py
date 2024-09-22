@@ -5,19 +5,24 @@ import pickle
 import time
 from collections import defaultdict
 import numpy as np
+import random
 from consumer import ConsumerAgent
 from mesa.model import Model
 from mesa_utils.datacollection import DataCollector
 from mesa_utils.schedule import RandomActivationByType
+
+
 from read_config import *
-from service_provider import providerAgent
+from service_provider import ProviderAgent
 from utils import *
+
 
 
 class RecommendationModel(Model):
     c = itertools.count(1)
 
     def __init__(self, **kwargs):
+        super().__init__(self)
         self.schedule = RandomActivationByType(self)
         self.running = True
 
@@ -104,12 +109,45 @@ class RecommendationModel(Model):
         )
         self.datacollector.collect(self)
 
+    def add_new_items(self):
+        print("New items are added to the item catalog......")
+        sampled_items = random.sample(
+            self.available_items, model_parameters["num_items"]
+        )
+
+        item_profit = generate_profitdata(self.seed, sampled_items)
+
+        # generate profit data, include the new items
+        self.profit_data.update(item_profit)
+
+        self.all_available_items = [
+            i for i in self.available_items if i not in sampled_items
+        ]
+
+        for u in set(self.ratings_df["userId"]):
+            user_ratings = self.ratings_df[self.ratings_df["userId"] == u]
+            b_u = self.ratings_df["rating"].mean() + (
+                user_ratings["rating"].mean() - self.ratings_df["rating"].mean()
+            )
+
+            self.ratings_df = self.ratings_df._append(
+                pd.DataFrame(
+                    {
+                        "userId": [u for i in range(len(sampled_items))],
+                        "movieId": sampled_items,
+                        "rating": [b_u for i in range(len(sampled_items))],
+                    }
+                ),
+                ignore_index=True,
+            )
+        print("Done")
+
     def create_provider(self: object) -> None:
         """
 
         This function creates a provider agent and adds it to the scheduler to be activated before any agent.
         """
-        provider = providerAgent(0, self)
+        provider = ProviderAgent(0, self)
         self.schedule.add(provider)
 
     def create_consumers(self: object) -> None:
@@ -135,6 +173,7 @@ class RecommendationModel(Model):
          This function initialize model variables using the parameters defined in the config file.
          Model variables hold values to be shared with all agents.
         """
+
         self.consumers_thresholds = {}
         recdata_path = get_rec_dir()
         self.recommendations = pickle.load(
@@ -147,7 +186,9 @@ class RecommendationModel(Model):
         self.quantile_consumer_expectation = kwargs["quantile_consumer_expectation"]
         self.recommendation_length = model_parameters["recommendation_length"]
         self.seed = next(self.c)
-        self.profit_data = generate_profitdata(self.seed)
+
+        self.profit_data = generate_profitdata(self.seed, get_items())
+
         self.num_consumers = self.ratings_df["userId"].nunique()
         self.num_items = get_num_items
         self.user_consumed_items = defaultdict(list)
@@ -156,6 +197,13 @@ class RecommendationModel(Model):
         self.feedback_likelihood = model_parameters["feedback_likelihood"]
         if self.seed == self.runs:
             setattr(RecommendationModel, "c", itertools.count(1))
+
+        # get new items
+        data_path = get_dataset_dir()
+        new_items_path = os.path.join(data_path, model_input["extra_items_dataset"])
+        new_items_df = pd.read_csv(new_items_path)
+        self.available_items = list(new_items_df["movieId"])
+
         # compute the consumers" expectation thresholds
         self.compute_thresholds()
         # get the recommendations
@@ -174,7 +222,7 @@ class RecommendationModel(Model):
         This function computes the expectation threshold for each consumer by taking the quantile value of the items ranked
         descendingly according to their perceived utilities to each consumer.
         """
-        print("Compute consumer's expectation thresholds..")
+        print("Compute consumer's expectation thresholds...")
         for c, recs in self.recommendations.items():
             ratings_c = [r["rating"] for r in recs]
             self.consumers_thresholds[c] = np.quantile(
@@ -217,9 +265,11 @@ class RecommendationModel(Model):
                 self.recommendations, self.profit_data, weights[2]
             )
 
-        else:  # need to be cleaning, look into it later :)
+        else:
             if self.recommendation_strategy == "popular-correlated-profit":
-                self.profit_data = generate_profit_data_popularity(self.seed)
+                self.profit_data = generate_profit_data_popularity(
+                    self.seed, get_items()
+                )
             popular_items = get_popular_items(get_ratings_data())
             self.recommendations = get_predictions_popular_items(
                 self.num_consumers, popular_items, self.predictive_model
@@ -259,7 +309,8 @@ class RecommendationModel(Model):
 
         A function to replace the predicted consumers utilities with the true utilities of the consumed items
         """
-        print("Recomputing consumers predicted utilities")
+        print("Recomputing consumers predicted utilities...")
+        temp_df = pd.DataFrame()
         for k, vlist in self.user_consumed_items.items():
             for v in vlist:
                 # if the flag of sending feedback is on
@@ -269,7 +320,9 @@ class RecommendationModel(Model):
                         "movieId": v["iid"],
                         "rating": rescale_rating(v["rating"]),
                     }
-                    self.ratings_df = self.ratings_df._append(row, ignore_index=True)
+                    temp_df._append(row, ignore_index=True)
+
+        self.ratings_df = self.ratings_df._append(temp_df, ignore_index=True)
         self.update_predictions()
         self.user_consumed_items = defaultdict(list)
 
@@ -299,17 +352,28 @@ class RecommendationModel(Model):
 
         A function to handle model adaptation each time step
         """
+        if model_parameters["add_new_item"]:
+            if (self.schedule.steps + 1) % model_parameters[
+                "frequency_adding_items"
+            ] == 0 and self.schedule.steps + 1 != model_parameters["timesteps"]:
+                self.add_new_items()
+
         t0 = time.process_time()
         if (self.schedule.steps + 1) % model_parameters[
             "frequency_update_expectation"
-        ] == 0:
+        ] == 0 and self.schedule.steps + 1 != model_parameters["timesteps"]:
             self.update_consumer_thresholds()
 
         # recompute consumers' utilities
+        # if model_parameters["update_utilities"]:
+        #     if (self.schedule.steps + 1) % model_parameters[
+        #         "frequency_recompute_utilities"
+        #     ] == 0 and self.schedule.steps + 1 != model_parameters["timesteps"]:
+        #         self.recompute_consumers_utilities()
+
+        # recompute the utilities
         if model_parameters["update_utilities"]:
-            if (self.schedule.steps + 1) % model_parameters[
-                "frequency_recompute_utilities"
-            ] == 0:
+            if self.schedule.steps + 1 == (model_parameters["timesteps"] / 2):
                 self.recompute_consumers_utilities()
 
         # consumers to be influenced by the social media

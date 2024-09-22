@@ -9,11 +9,11 @@ from utils import get_exec_path, store_scenarios, create_directory
 def plot_results(model_data: pd.DataFrame, agents_data: pd.DataFrame, t: time) -> None:
     """
 
-     :param model_data: pandas dataframe holds model's state variables.
-     :param agents_data: pandas dataframe holds consumers' state variables.
-     :param t: time used to be contacted to the execution directory name.
+    :param model_data: pandas dataframe holds model's state variables.
+    :param agents_data: pandas dataframe holds consumers' state variables.
+    :param t: time used to be contacted to the execution directory name.
 
-     A function creates all the figures from the generated csv files.
+    A function creates all the figures from the generated csv files.
     """
     exec_path = get_exec_path()
     exec_path += t
@@ -30,7 +30,9 @@ def plot_results(model_data: pd.DataFrame, agents_data: pd.DataFrame, t: time) -
         model_scenario.to_csv(f"{exec_path}/model-data-{s}.csv", index=False)
 
 
-def plot_per_type(exec_path: str, scenario_df: pd.DataFrame, s: str, plot_type: str) -> None:
+def plot_per_type(
+    exec_path: str, scenario_df: pd.DataFrame, s: str, plot_type: str
+) -> None:
     """
 
     :param exec_path: str of execution directory path.
@@ -44,8 +46,7 @@ def plot_per_type(exec_path: str, scenario_df: pd.DataFrame, s: str, plot_type: 
     plt.figure(plot_type)
     tick_spacing = model_parameters["timesteps"] / 10
     ax.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
-    df = scenario_df.groupby(
-        "step", as_index=False).agg({plot_type: "mean"})
+    df = scenario_df.groupby("step", as_index=False).agg({plot_type: "mean"})
     plt.plot(list(df["step"]), list(df[plot_type]), label=s)
     plt.legend(loc=(1.1, 0.5))
     plt.tight_layout()
@@ -55,7 +56,9 @@ def plot_per_type(exec_path: str, scenario_df: pd.DataFrame, s: str, plot_type: 
     plt.close(fig)
 
 
-def plot_all(exec_path: str, agent_scenario: pd.DataFrame, model_scenario: pd.DataFrame, s: str) -> None:
+def plot_all(
+    exec_path: str, agent_scenario: pd.DataFrame, model_scenario: pd.DataFrame, s: str
+) -> None:
     """
     :param exec_path: str of execution directory path.
     :param agent_scenario: pandas dataframe of consumers data per scenario.
@@ -66,6 +69,6 @@ def plot_all(exec_path: str, agent_scenario: pd.DataFrame, model_scenario: pd.Da
     """
     model_scenario = model_scenario[model_scenario["total_profit"] > 0]
     plot_per_type(exec_path, agent_scenario, s, "trust")
-    #plot_per_type(exec_path, model_scenario, s, "avg_profit_per_consumption")
+    # plot_per_type(exec_path, model_scenario, s, "avg_profit_per_consumption")
     plot_per_type(exec_path, model_scenario, s, "total_profit")
     plot_per_type(exec_path, agent_scenario, s, "consumption_probability")
