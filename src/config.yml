@@ -2,9 +2,10 @@
 model_input:
   ratings_dataset: "ratings.csv"
   items_dataset: "movies.csv"
+  extra_items_dataset: "extra_movies.csv"
   rating_scale: [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]
   recommendation_data_directory: "recdata"
-  trust_data_dir: 'trust'
+  trust_data_dir: "trust"
   data_directory: "data"
   dataset_directory: "dataset"
   results_directory: "results"
@@ -13,8 +14,8 @@ model_input:
 # model parameters
 model_parameters:
   timesteps: 1000
-  number_of_runs: 3
-  quantile_consumer_expectation: [0.85] 
+  number_of_runs: 7
+  quantile_consumer_expectation: [0.75]
   recommendation_strategy:
     [
       "consumer-centric",
@@ -25,21 +26,26 @@ model_parameters:
       "popular-correlated-profit",
     ]
   recommendation_length: 10
-  error: { "mu": 0, "sd": 0.1 } #(0.1,0.5)
+  error: { "mu": 0, "sd": 0.1 } #(0.1,0.5)  (0.05,0.15)
   frequency_update_expectation: 100
-  update_utilities: 0
-  frequency_recompute_utilities: 100
+  update_utilities: 1
+  # frequency_recompute_utilities: 100
   # Three functions could be used to compute the distance: euclidean
   trust_update_distance: "euclidean"
-  feedback_likelihood: 0.1
+  feedback_likelihood: 0.10
   # social media
   social_media_on: 0
-  observing_socialmedia_likelihood: 0.1 #(0.1,0.8)
-  social_media_reliance: 0.05
-  numposts_threshold: 5000 #(600,5000)
+  observing_socialmedia_likelihood: 0.75 #(0.6,0.9)
+  social_media_reliance: 0.1
+  numposts_threshold: 2800 #(600,5000)
   social_media_weight: 0.5
   trust_weight: 0.5
 
+  # addingnew items
+  add_new_item: 1
+  frequency_adding_items: 100
+  num_items: 50
+
   #dropout
-  drop_out_on: 0
+  drop_out_on: 1
   dropout_threshold: 0.9

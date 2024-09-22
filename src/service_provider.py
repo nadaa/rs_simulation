@@ -4,7 +4,7 @@ from read_config import *
 from utils import *
 
 
-class providerAgent(Agent):
+class ProviderAgent(Agent):
     def __init__(self: Agent, id: int, model: Model) -> None:
         super().__init__(id, model)
         self.recommendation_strategy = None

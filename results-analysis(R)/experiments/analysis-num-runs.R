@@ -7,7 +7,7 @@ library(hash)
 setwd('C:\\Phd\\code-last\\results\\preexperiments\\find-runs')
 
 
-runs= c(5,7,9)
+runs= c(3,5,7)
 strategies = c('consumer-centric','profit-centric','consumer-biased','balanced', 'popular-uncorrelated-profit',
                'popular-correlated-profit')
 

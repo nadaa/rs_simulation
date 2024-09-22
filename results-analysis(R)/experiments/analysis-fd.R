@@ -4,10 +4,11 @@ library(hash)
 #compute means and variance coeffcients
 
 #read the csv files for all strategies
-setwd('C:\\Phd\\code-last\\results\\iter2')
+setwd('C:\\Phd\\extension-current\\results\\sa\\iter2')
 
 
-dps= c('00','10','01','11') #'010','011','100','101','110','111')
+dps= c('1','2') #'010','011','100','101','110','111')
+
 strategies = c('consumer-centric','profit-centric','consumer-biased','balanced', 'popular-uncorrelated-profit',
                'popular-correlated-profit')
 
