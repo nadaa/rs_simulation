@@ -17,7 +17,6 @@ from service_provider import ProviderAgent
 from utils import *
 
 
-
 class RecommendationModel(Model):
     c = itertools.count(1)
 
@@ -35,6 +34,7 @@ class RecommendationModel(Model):
         self.datacollector = DataCollector(
             model_reporters={
                 "strategy": "recommendation_strategy",
+                "switch_to_strategy": lambda m: (m.switch_to_strategy),
                 "model_params": get_params,
                 "step": lambda m: m.schedule.steps,
                 "total_profit": lambda m: np.round(m.total_profit, 3),
@@ -43,6 +43,39 @@ class RecommendationModel(Model):
                     m.avg_profit_per_consumption, 3
                 ),
                 "number_of_dropout": lambda m: len(m.dropout_consumers),
+                # "number_of_positive_posts": lambda m: np.round(np.sum([p[0] for p in m.social_media[: self.schedule.steps]])),
+                # "number_of_negative_posts": lambda m: np.round(
+                #     np.sum([p[1] for p in m.social_media[: self.schedule.steps]])
+                # ),
+                "social_reputation": lambda m: np.round(m.social_reputation, 3),
+                "social_reputation_moving_avg": lambda m: (
+                    np.round(
+                        np.mean(
+                            m.social_reputation_history[
+                                m.schedule.steps
+                                - model_parameters["n"] : m.schedule.steps
+                                + 1
+                            ]
+                        ),
+                        3,
+                    )
+                    if m.schedule.steps > model_parameters["n"]
+                    else np.round(m.social_reputation, 3)
+                ),
+                "profit_moving_avg": lambda m: (
+                    np.round(
+                        np.mean(
+                            m.total_profit_history[
+                                m.schedule.steps
+                                - model_parameters["n"] : m.schedule.steps
+                                + 1
+                            ]
+                        ),
+                        3,
+                    )
+                    if m.schedule.steps > 10
+                    else np.round(m.total_profit, 3)
+                ),
             },
             agent_reporters={
                 "step": lambda a: (
@@ -111,18 +144,14 @@ class RecommendationModel(Model):
 
     def add_new_items(self):
         print("New items are added to the item catalog......")
-        sampled_items = random.sample(
-            self.available_items, model_parameters["num_items"]
-        )
+        sampled_items = random.sample(self.new_items, model_parameters["num_items"])
 
         item_profit = generate_profitdata(self.seed, sampled_items)
 
         # generate profit data, include the new items
         self.profit_data.update(item_profit)
 
-        self.all_available_items = [
-            i for i in self.available_items if i not in sampled_items
-        ]
+        self.new_items = [i for i in self.new_items if i not in sampled_items]
 
         for u in set(self.ratings_df["userId"]):
             user_ratings = self.ratings_df[self.ratings_df["userId"] == u]
@@ -140,6 +169,15 @@ class RecommendationModel(Model):
                 ),
                 ignore_index=True,
             )
+
+            # append the new items to the tail of recommendation list
+            self.recommendations[u].extend(
+                [
+                    {"iid": i, "rating": b_u, "profit": self.profit_data[i]}
+                    for i in sampled_items
+                ]
+            )
+
         print("Done")
 
     def create_provider(self: object) -> None:
@@ -183,6 +221,8 @@ class RecommendationModel(Model):
 
         self.ratings_df = get_ratings_data()
         self.recommendation_strategy = kwargs["recommendation_strategy"]
+        self.switch_to_strategy = None
+
         self.quantile_consumer_expectation = kwargs["quantile_consumer_expectation"]
         self.recommendation_length = model_parameters["recommendation_length"]
         self.seed = next(self.c)
@@ -202,19 +242,37 @@ class RecommendationModel(Model):
         data_path = get_dataset_dir()
         new_items_path = os.path.join(data_path, model_input["extra_items_dataset"])
         new_items_df = pd.read_csv(new_items_path)
-        self.available_items = list(new_items_df["movieId"])
+        self.new_items = list(new_items_df["movieId"])
 
         # compute the consumers" expectation thresholds
         self.compute_thresholds()
         # get the recommendations
         self.get_precomputed_consumers_utilities(0)
-        self.social_media = [0, 0]  # [number_of_likes, number_of dislikes]
+
+        # self.social_media = [
+        #     [0, 0] for _ in range(model_parameters["timesteps"] + 1)
+        # ]  # [number_of_likes, number_of dislikes]
+
+        self.social_media = [0, 0]
+
+        self.a = 1
+        self.social_reputation = 0
+        self.pos_posts = 0
+        self.neg_posts = 0
+
         self.dropout_consumers = []
         self.topn = None
         # the output of these variables are taken from the provider agent
         self.total_profit = 0
         self.number_of_consumption = 0
+        # self.social_reputation = None
         self.avg_profit_per_consumption = 0
+        self.total_profit_history = [0]
+        self.social_reputation_history = [0]
+
+        # thresholds to switch strategies
+        self.social_reputation_thresh = model_parameters["reputation_threshold"]
+        self.profit_thresh = model_parameters["profit_threshold"]
 
     def compute_thresholds(self: object) -> None:
         """
@@ -226,7 +284,7 @@ class RecommendationModel(Model):
         for c, recs in self.recommendations.items():
             ratings_c = [r["rating"] for r in recs]
             self.consumers_thresholds[c] = np.quantile(
-                ratings_c, self.quantile_consumer_expectation
+                np.sort(ratings_c), self.quantile_consumer_expectation
             )
         print("Done")
 
@@ -347,6 +405,48 @@ class RecommendationModel(Model):
         """
         self.user_consumed_items[consumer_id].append(item_id)
 
+    def compute_social_reputation(self):
+
+        smooth = model_parameters["social_media_smooth_min_rate"] * (
+            model_parameters["social_media_smooth_max_rate"]
+            / model_parameters["social_media_smooth_min_rate"]
+        ) ** (self.schedule.steps / model_parameters["timesteps"])
+
+        self.social_media[0] = self.social_media[0] + smooth * (
+            self.pos_posts - self.social_media[0]
+        )
+        self.social_media[1] = self.social_media[1] + smooth * (
+            self.neg_posts - self.social_media[1]
+        )
+
+        # pos = sum([p[0] for p in self.social_media[: self.schedule.steps]])
+
+        # neg = sum([p[1] for p in self.social_media[: self.schedule.steps]])
+
+        rep = self.social_media[0] / (self.social_media[0] + self.social_media[1] + 1)
+
+        if self.schedule.steps == 1:
+            rep = rep * smooth
+
+        return rep
+
+        # decay_rate = 0.001
+        # pos = np.sum(
+        #     [
+        #         self.social_media[t_i][0]
+        #         * np.exp(-decay_rate * (self.schedule.steps - t_i))
+        #         for t_i in range(self.schedule.steps + 1)
+        #     ]
+        # )
+        # neg = np.sum(
+        #     [
+        #         self.social_media[t_i][1]
+        #         * np.exp(-decay_rate * (self.schedule.steps - t_i))
+        #         for t_i in range(self.schedule.steps + 1)
+        #     ]
+        # )
+        # return pos / (pos + neg+1)
+
     def step(self):
         """
 
@@ -376,10 +476,26 @@ class RecommendationModel(Model):
             if self.schedule.steps + 1 == (model_parameters["timesteps"] / 2):
                 self.recompute_consumers_utilities()
 
-        # consumers to be influenced by the social media
-        num_posts = self.social_media[0] + self.social_media[1]
-        self.a = min((num_posts / (model_parameters["numposts_threshold"])), 1)
+        if self.schedule.steps > 0:
+            num_posts = (
+                # self.social_media[self.schedule.steps - 1][0]
+                # + self.social_media[self.schedule.steps - 1][1]
+                self.social_media[0]
+                + self.social_media[1]
+            )
+            self.a = min((num_posts / (model_parameters["numposts_threshold"])), 1)
+
         self.schedule.step()
+
+        self.social_reputation = self.compute_social_reputation()
+
+        # if there is a switch instead of only take the recent posts, consider taking a percentage of the previous posts
+
+        self.total_profit_history.append(self.total_profit)
+        self.social_reputation_history.append(self.social_reputation)
+
+        self.pos_posts = 0
+        self.neg_posts = 0
 
         # remove dropout consumers from the platform
         for c in self.dropout_consumers:

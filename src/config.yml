@@ -13,39 +13,53 @@ model_input:
 
 # model parameters
 model_parameters:
-  timesteps: 1000
+  timesteps: 1000 
   number_of_runs: 7
   quantile_consumer_expectation: [0.75]
-  recommendation_strategy:
-    [
+  recommendation_strategy: [
       "consumer-centric",
       "profit-centric",
       "consumer-biased",
-      "balanced",
-      "popular-uncorrelated-profit",
-      "popular-correlated-profit",
+      # "balanced",
+      # "popular-uncorrelated-profit",
+      # "popular-correlated-profit",
     ]
   recommendation_length: 10
   error: { "mu": 0, "sd": 0.1 } #(0.1,0.5)  (0.05,0.15)
   frequency_update_expectation: 100
-  update_utilities: 1
+
+  update_utilities: 0
+
   # frequency_recompute_utilities: 100
   # Three functions could be used to compute the distance: euclidean
   trust_update_distance: "euclidean"
   feedback_likelihood: 0.10
+
   # social media
-  social_media_on: 0
+  social_media_on: 1
   observing_socialmedia_likelihood: 0.75 #(0.6,0.9)
   social_media_reliance: 0.1
   numposts_threshold: 2800 #(600,5000)
   social_media_weight: 0.5
   trust_weight: 0.5
 
-  # addingnew items
-  add_new_item: 1
+  social_media_prob_noise: 0.01
+  social_media_smooth_min_rate: 0.0001
+  social_media_smooth_max_rate: 0.001
+
+  # adding new items
+  add_new_item: 0
   frequency_adding_items: 100
   num_items: 50
 
   #dropout
-  drop_out_on: 1
+  drop_out_on: 0
   dropout_threshold: 0.9
+
+  # switch strategy
+  switch_strategy: 0
+  period_switch: 30
+
+  profit_threshold: 1647
+  reputation_threshold: 0.6
+  n: 10

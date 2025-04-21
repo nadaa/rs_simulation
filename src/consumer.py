@@ -28,7 +28,7 @@ class ConsumerAgent(Agent):
         self.consumption_probability = self.trust
         self.consumption_probability_limits = [0, 0]  # [lower limit, upper limit]]
         self.provider_reputation_in_memory = (
-            0  # to remember the previous reputation that had seen on the social media
+            0  # to remember the previous reputation that had seen on social media
         )
 
     def consume_item(self: Agent) -> bool:
@@ -84,9 +84,14 @@ class ConsumerAgent(Agent):
         """
         p = np.random.uniform()
         if p <= model_parameters["observing_socialmedia_likelihood"]:
-            self.provider_reputation_in_memory = (self.model.social_media[0]) / (
-                self.model.social_media[0] + self.model.social_media[1] + 1
-            )
+            self.provider_reputation_in_memory = self.model.social_reputation
+
+            #     self.model.social_media[self.model.schedule.steps][0]
+            # ) / (
+            #     self.model.social_media[self.model.schedule.steps][0]
+            #     + self.model.social_media[self.model.schedule.steps][1]
+            #     + 1
+
             return 1
         return 0
 
@@ -134,18 +139,37 @@ class ConsumerAgent(Agent):
 
         A function updates consumer trust using the expected value of the beta distribution with the previous consumption experiences as the beta parameters.
         """
+
         self.trust = self.positive_negative_experience[0] / (
             self.positive_negative_experience[0] + self.positive_negative_experience[1]
         )
 
     def post_to_social_media(self: Agent) -> None:
-        p = np.random.uniform(0, 1)
-        social_media_prob = self.get_social_media_prob()
-        if p <= social_media_prob:
+        p_post = np.random.uniform(0, 1)
+        p_bias = np.random.uniform(0, 1)
+        social_media_prob = (
+            self.get_social_media_prob()
+        )  # probability to post on social media
+        if p_post <= social_media_prob:
             if self.is_satisfied():
-                self.model.social_media[0] += 1
+                # self.model.social_media[self.model.schedule.steps][0] += 1
+                if (
+                    p_bias
+                    < model_parameters["social_media_prob_noise"]
+                ):
+                    self.model.neg_posts += 1
+                else:
+                    self.model.pos_posts += 1
             else:
-                self.model.social_media[1] += 1
+                # self.model.social_media[self.model.schedule.steps][1] += 1
+
+                if (
+                    p_bias
+                    < model_parameters["social_media_prob_noise"]
+                ):
+                    self.model.pos_posts += 1
+                else:
+                    self.model.neg_posts += 1
 
     def get_social_media_prob(self: Agent) -> float:
         """
@@ -205,8 +229,6 @@ class ConsumerAgent(Agent):
         A function updates consumer's state variables each time step.
         """
         if model_parameters["drop_out_on"]:
-            # print( self.trust-self.initialtrust *
-            #         model_parameters["dropout_threshold"],self.trust)
 
             if self.trust <= (
                 self.initialtrust * model_parameters["dropout_threshold"]
@@ -231,6 +253,7 @@ class ConsumerAgent(Agent):
             send_feedback_to_provider = self.send_feedback_decision()
             if model_parameters["social_media_on"]:
                 self.post_to_social_media()
+
             # remove the selecteditem from the recommendations, so it won't be recommended again
             inx = self.model.recommendations[self.consumer_id].index(self.selecteditem)
             del self.model.recommendations[self.consumer_id][inx]

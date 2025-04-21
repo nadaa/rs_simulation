@@ -15,7 +15,6 @@ from surprise import SVD, Dataset, Reader
 from tqdm import tqdm
 
 
-
 def predict_consumers_items_utilities(
     ratings_df: pd.DataFrame,
 ) -> (defaultdict, object):
