@@ -43,10 +43,7 @@ class RecommendationModel(Model):
                     m.avg_profit_per_consumption, 3
                 ),
                 "number_of_dropout": lambda m: len(m.dropout_consumers),
-                # "number_of_positive_posts": lambda m: np.round(np.sum([p[0] for p in m.social_media[: self.schedule.steps]])),
-                # "number_of_negative_posts": lambda m: np.round(
-                #     np.sum([p[1] for p in m.social_media[: self.schedule.steps]])
-                # ),
+              
                 "social_reputation": lambda m: np.round(m.social_reputation, 3),
                 "social_reputation_moving_avg": lambda m: (
                     np.round(
@@ -249,9 +246,6 @@ class RecommendationModel(Model):
         # get the recommendations
         self.get_precomputed_consumers_utilities(0)
 
-        # self.social_media = [
-        #     [0, 0] for _ in range(model_parameters["timesteps"] + 1)
-        # ]  # [number_of_likes, number_of dislikes]
 
         self.social_media = [0, 0]
 
@@ -430,22 +424,7 @@ class RecommendationModel(Model):
 
         return rep
 
-        # decay_rate = 0.001
-        # pos = np.sum(
-        #     [
-        #         self.social_media[t_i][0]
-        #         * np.exp(-decay_rate * (self.schedule.steps - t_i))
-        #         for t_i in range(self.schedule.steps + 1)
-        #     ]
-        # )
-        # neg = np.sum(
-        #     [
-        #         self.social_media[t_i][1]
-        #         * np.exp(-decay_rate * (self.schedule.steps - t_i))
-        #         for t_i in range(self.schedule.steps + 1)
-        #     ]
-        # )
-        # return pos / (pos + neg+1)
+     
 
     def step(self):
         """
@@ -478,8 +457,6 @@ class RecommendationModel(Model):
 
         if self.schedule.steps > 0:
             num_posts = (
-                # self.social_media[self.schedule.steps - 1][0]
-                # + self.social_media[self.schedule.steps - 1][1]
                 self.social_media[0]
                 + self.social_media[1]
             )
@@ -489,7 +466,6 @@ class RecommendationModel(Model):
 
         self.social_reputation = self.compute_social_reputation()
 
-        # if there is a switch instead of only take the recent posts, consider taking a percentage of the previous posts
 
         self.total_profit_history.append(self.total_profit)
         self.social_reputation_history.append(self.social_reputation)
