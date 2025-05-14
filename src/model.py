@@ -76,6 +76,8 @@ class RecommendationModel(Model):
                     if m.schedule.steps > 10
                     else np.round(m.total_profit, 3)
                 ),
+                "#pos": lambda m: m.cumulative_posts[0],
+                "#neg": lambda m: m.cumulative_posts[1],
             },
             agent_reporters={
                 "step": lambda a: (
@@ -254,8 +256,9 @@ class RecommendationModel(Model):
         # ]  # [number_of_likes, number_of dislikes]
 
         self.social_media = [0, 0]
+        self.cumulative_posts = [0, 0]
 
-        self.a = 1
+        self.a = 0
         self.social_reputation = 0
         self.pos_posts = 0
         self.neg_posts = 0
@@ -428,24 +431,11 @@ class RecommendationModel(Model):
         if self.schedule.steps == 1:
             rep = rep * smooth
 
-        return rep
+        # rep = self.cumulative_posts[0]/(self.cumulative_posts[0]+self.cumulative_posts[1]+1)
+        
+        # print(self.social_reputation)
 
-        # decay_rate = 0.001
-        # pos = np.sum(
-        #     [
-        #         self.social_media[t_i][0]
-        #         * np.exp(-decay_rate * (self.schedule.steps - t_i))
-        #         for t_i in range(self.schedule.steps + 1)
-        #     ]
-        # )
-        # neg = np.sum(
-        #     [
-        #         self.social_media[t_i][1]
-        #         * np.exp(-decay_rate * (self.schedule.steps - t_i))
-        #         for t_i in range(self.schedule.steps + 1)
-        #     ]
-        # )
-        # return pos / (pos + neg+1)
+        return rep
 
     def step(self):
         """
@@ -478,21 +468,24 @@ class RecommendationModel(Model):
 
         if self.schedule.steps > 0:
             num_posts = (
-                # self.social_media[self.schedule.steps - 1][0]
-                # + self.social_media[self.schedule.steps - 1][1]
-                self.social_media[0]
-                + self.social_media[1]
+            
+                self.cumulative_posts[0]
+                + self.cumulative_posts[1]
             )
-            self.a = min((num_posts / (model_parameters["numposts_threshold"])), 1)
+            self.a = min((num_posts **0.8/ (model_parameters["numposts_threshold"])), 1)
 
         self.schedule.step()
 
-        self.social_reputation = self.compute_social_reputation()
+        if model_parameters["social_media_on"]:
+            self.social_reputation = self.compute_social_reputation()
 
         # if there is a switch instead of only take the recent posts, consider taking a percentage of the previous posts
 
         self.total_profit_history.append(self.total_profit)
         self.social_reputation_history.append(self.social_reputation)
+
+        self.cumulative_posts[0] += self.pos_posts
+        self.cumulative_posts[1] += self.neg_posts
 
         self.pos_posts = 0
         self.neg_posts = 0

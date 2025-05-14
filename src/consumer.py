@@ -50,7 +50,7 @@ class ConsumerAgent(Agent):
         A function computes consumption probability by considering the personal experiences and other consumers' experiences shared on social media.
         """
         self.consumption_probability = self.trust
-        if model_parameters["social_media_on"]:
+        if model_parameters["social_media_on"] and self.model.social_reputation>0:
             if self.look_to_social_media():
                 cons = (
                     model_parameters["trust_weight"] * self.trust
@@ -61,6 +61,7 @@ class ConsumerAgent(Agent):
                     self.consumption_probability_limits[0],
                     min(self.consumption_probability_limits[1], cons),
                 )
+           
 
     def compute_consumption_prob_limits(self):
         """
@@ -146,27 +147,23 @@ class ConsumerAgent(Agent):
 
     def post_to_social_media(self: Agent) -> None:
         p_post = np.random.uniform(0, 1)
+
         p_bias = np.random.uniform(0, 1)
+
         social_media_prob = (
             self.get_social_media_prob()
         )  # probability to post on social media
         if p_post <= social_media_prob:
             if self.is_satisfied():
                 # self.model.social_media[self.model.schedule.steps][0] += 1
-                if (
-                    p_bias
-                    < model_parameters["social_media_prob_noise"]
-                ):
+                if p_bias < model_parameters["social_media_prob_noise"]:
                     self.model.neg_posts += 1
                 else:
                     self.model.pos_posts += 1
             else:
                 # self.model.social_media[self.model.schedule.steps][1] += 1
 
-                if (
-                    p_bias
-                    < model_parameters["social_media_prob_noise"]
-                ):
+                if p_bias < model_parameters["social_media_prob_noise"]:
                     self.model.pos_posts += 1
                 else:
                     self.model.neg_posts += 1

@@ -13,16 +13,17 @@ model_input:
 
 # model parameters
 model_parameters:
-  timesteps: 1000 
+  timesteps: 1000
   number_of_runs: 7
   quantile_consumer_expectation: [0.75]
-  recommendation_strategy: [
+  recommendation_strategy:
+    [
       "consumer-centric",
       "profit-centric",
       "consumer-biased",
-      # "balanced",
-      # "popular-uncorrelated-profit",
-      # "popular-correlated-profit",
+      "balanced",
+      "popular-uncorrelated-profit",
+      "popular-correlated-profit",
     ]
   recommendation_length: 10
   error: { "mu": 0, "sd": 0.1 } #(0.1,0.5)  (0.05,0.15)
@@ -36,9 +37,9 @@ model_parameters:
   feedback_likelihood: 0.10
 
   # social media
-  social_media_on: 1
+  social_media_on: 0
   observing_socialmedia_likelihood: 0.75 #(0.6,0.9)
-  social_media_reliance: 0.1
+  social_media_reliance: 0.5
   numposts_threshold: 2800 #(600,5000)
   social_media_weight: 0.5
   trust_weight: 0.5
@@ -53,7 +54,7 @@ model_parameters:
   num_items: 50
 
   #dropout
-  drop_out_on: 0
+  drop_out_on: 1
   dropout_threshold: 0.9
 
   # switch strategy
