@@ -43,7 +43,8 @@ class RecommendationModel(Model):
                     m.avg_profit_per_consumption, 3
                 ),
                 "number_of_dropout": lambda m: len(m.dropout_consumers),
-              
+                "number_of_positive_posts": lambda m: m.social_media[0],
+                "number_of_negative_posts": lambda m: m.social_media[1],
                 "social_reputation": lambda m: np.round(m.social_reputation, 3),
                 "social_reputation_moving_avg": lambda m: (
                     np.round(
@@ -248,6 +249,9 @@ class RecommendationModel(Model):
         # get the recommendations
         self.get_precomputed_consumers_utilities(0)
 
+        # self.social_media = [
+        #     [0, 0] for _ in range(model_parameters["timesteps"] + 1)
+        # ]  # [number_of_likes, number_of dislikes]
 
         self.social_media = [0, 0]
         self.cumulative_posts = [0, 0]
@@ -416,24 +420,12 @@ class RecommendationModel(Model):
             self.neg_posts - self.social_media[1]
         )
 
-        # pos = sum([p[0] for p in self.social_media[: self.schedule.steps]])
-
-        # neg = sum([p[1] for p in self.social_media[: self.schedule.steps]])
-
         rep = self.social_media[0] / (self.social_media[0] + self.social_media[1] + 1)
 
         if self.schedule.steps == 1:
             rep = rep * smooth
 
-        # rep = self.cumulative_posts[0]/(self.cumulative_posts[0]+self.cumulative_posts[1]+1)
-        
-        # print(self.social_reputation)
-
-<<<<<<< HEAD
         return rep
-=======
-     
->>>>>>> eef98dbd1a50077bbce088ec9ad6c312cacfe937
 
     def step(self):
         """
@@ -465,23 +457,13 @@ class RecommendationModel(Model):
                 self.recompute_consumers_utilities()
 
         if self.schedule.steps > 0:
-            num_posts = (
-<<<<<<< HEAD
-            
-                self.cumulative_posts[0]
-                + self.cumulative_posts[1]
-=======
-                self.social_media[0]
-                + self.social_media[1]
->>>>>>> eef98dbd1a50077bbce088ec9ad6c312cacfe937
-            )
-            self.a = min((num_posts **0.8/ (model_parameters["numposts_threshold"])), 1)
+            num_posts = self.cumulative_posts[0] + self.cumulative_posts[1]
+            self.a = min((num_posts**0.8 / (model_parameters["numposts_threshold"])), 1)
 
         self.schedule.step()
 
         if model_parameters["social_media_on"]:
             self.social_reputation = self.compute_social_reputation()
-
 
         self.total_profit_history.append(self.total_profit)
         self.social_reputation_history.append(self.social_reputation)
